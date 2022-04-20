@@ -135,7 +135,7 @@ def get_label(index, hand, results):
             output = text, coords
             
     return output
-    
+
 hand_plane = {'0':[0.0, 0.0, 0.0], #wrist
             '17':[7.0, 0.0, 0.0], #pinky_base
             '5':[6.0, 5.5, 0.0], #index_base
@@ -146,7 +146,7 @@ hand_plane = {'0':[0.0, 0.0, 0.0], #wrist
 joint_list = [[8,7,6], [12,11,10], [16,15,14], [20,19,18]]
 hand_points = [0, 17, 5, 2, 9, 13]
 # 180 deg rotation matrix around the x axis    
-R_flip  = np.zeros((3,3), dtype=np.float32)
+R_flip = np.zeros((3,3), dtype=np.float32)
 R_flip[0,0] = 1.0
 R_flip[1,1] =-1.0
 R_flip[2,2] =-1.0
