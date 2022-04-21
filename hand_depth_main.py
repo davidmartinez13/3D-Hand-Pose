@@ -35,7 +35,8 @@ def rotationMatrixToEulerAngles(R):
 
     return np.array([x, y, z])
 
-def draw_hand_pose(image, camera_matrix,camera_distortion, marker_size, rvec,tvec, z_rot=-1):
+def draw_hand_pose(image, coord_pos, camera_matrix,camera_distortion, marker_size, rvec,tvec, 
+                    z_rot=-1, cam_pose = False):
         world_points = np.array([
             3.0, 0.0, 0.0,
             0.0, 0.0, 0.0,
@@ -56,8 +57,6 @@ def draw_hand_pose(image, camera_matrix,camera_distortion, marker_size, rvec,tve
         cv2.putText(image, 'Z', img_points[3], font, 0.5, (255,0,0), 2, cv2.LINE_AA)
         # Position of hand respect to camera , if camera is steady and hand moving
         str_position = "x=%4.0f y=%4.0f z=%4.0f"%(tvec[0], tvec[1], tvec[2])
-        cv2.putText(image, str_position,(img_points[2][0]+10,img_points[2][1]-30), 
-                        font, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
         
         # Orientation of hand respect to camera , if camera is steady and hand moving
         # Rot matrix hand to camera:
@@ -69,23 +68,32 @@ def draw_hand_pose(image, camera_matrix,camera_distortion, marker_size, rvec,tve
                             math.degrees(x_rot_hand),
                             math.degrees(y_rot_hand),
                             math.degrees(z_rot_hand))
-        cv2.putText(image, str_rot_hand, (img_points[2][0]+10,img_points[2][1]-15), 
-                    font, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
-
-        # Position of camera respect to hand, if hand is steady and camera moving
-        pos_camera = -R_hand2cam * tvec
-        str_pos_cam = "Camera Transl x=%4.0f y=%4.0f z=%4.0f"%(pos_camera[0], pos_camera[1], pos_camera[2])
-        cv2.putText(image, str_pos_cam, (0, 200), font, 1, (255, 255, 0), 2, cv2.LINE_AA)
-
-        # Orientation of camera respect to hand, if hand is steady and camera moving
-        x_rot_cam, y_rot_cam, z_rot_cam = rotationMatrixToEulerAngles(R_flip*R_hand2cam)
-        str_rot_cam = "Camera Rot x_rot=%4.0f y_rot=%4.0f z_rot=%4.0f"%(
-                            math.degrees(x_rot_cam),
-                            math.degrees(y_rot_cam),
-                            math.degrees(z_rot_cam))
-        cv2.putText(image, str_rot_cam, (0, 250), font, 1, (255, 255, 0), 2, cv2.LINE_AA)
         
-def compute_hand_pose(image, hand, hand_points, hand_plane,camera_matrix,camera_distortion,draw_points=False):
+        cv2.putText(image, str_position,coord_pos, 
+                        font, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(image, str_rot_hand, (coord_pos[0], coord_pos[1]+50), 
+                    font, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
+        if cam_pose:
+            # Position of camera respect to hand, if hand is steady and camera moving
+            pos_camera = -R_hand2cam * tvec
+            str_pos_cam = "Camera Transl x=%4.0f y=%4.0f z=%4.0f"%(
+                                pos_camera[0], 
+                                pos_camera[1], 
+                                pos_camera[2])
+            cv2.putText(image, str_pos_cam, (coord_pos[0], coord_pos[1]+100), 
+                        font, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
+
+            # Orientation of camera respect to hand, if hand is steady and camera moving
+            x_rot_cam, y_rot_cam, z_rot_cam = rotationMatrixToEulerAngles(R_flip*R_hand2cam)
+            str_rot_cam = "Camera Rot x_rot=%4.0f y_rot=%4.0f z_rot=%4.0f"%(
+                                math.degrees(x_rot_cam),
+                                math.degrees(y_rot_cam),
+                                math.degrees(z_rot_cam))
+            cv2.putText(image, str_rot_cam, (coord_pos[0], coord_pos[1]+150), 
+                        font, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
+        
+def compute_hand_pose(image, hand, hand_points, hand_plane,camera_matrix,camera_distortion,
+                        draw_points=False, coord_pos = (0,100)):
     joint_img_pts = np.zeros((len(hand_points),2))
     joint_world_pts = np.zeros((len(hand_points),3))
     #Loop through joint sets
@@ -99,7 +107,7 @@ def compute_hand_pose(image, hand, hand_points, hand_plane,camera_matrix,camera_
             cv2.putText(image, str(tuple(joint_img_pt)), tuple(joint_img_pt),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
     _,rvec, tvec = cv2.solvePnP(joint_world_pts, joint_img_pts, camera_matrix, camera_distortion)
-    draw_hand_pose(image, camera_matrix, camera_distortion, 8, rvec, tvec)
+    draw_hand_pose(image, coord_pos, camera_matrix, camera_distortion, 8, rvec, tvec)
 
 def draw_finger_angles(image, hand, joint_list):
     for joint in joint_list:
@@ -160,7 +168,8 @@ mp_hands = mp.solutions.hands
 mp_hands.HandLandmark.WRIST
 width = 1280
 height = 720
-cap = cv2.VideoCapture(1)
+# cap = cv2.VideoCapture(1)
+cap = cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
 
@@ -169,6 +178,7 @@ with mp_hands.Hands(min_detection_confidence = 0.85, min_tracking_confidence = 0
         ret, frame = cap.read()
         image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         image = cv2.flip(image, 1)
+        canvas = np.zeros_like(image)
         # Set flag
         image.flags.writeable = False
         # Detections
@@ -178,18 +188,37 @@ with mp_hands.Hands(min_detection_confidence = 0.85, min_tracking_confidence = 0
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         if results.multi_hand_landmarks:
             for num, hand in enumerate(results.multi_hand_landmarks):
+                mask = np.zeros_like(image)
                 mp_drawing.draw_landmarks(
                     image, hand, mp_hands.HAND_CONNECTIONS, 
                     mp_drawing.DrawingSpec(color=(121, 22, 76), thickness=2, circle_radius=4),
                     mp_drawing.DrawingSpec(color=(250, 44, 250), thickness=2, circle_radius=2))
-                draw_finger_angles(image, hand, joint_list)
-                compute_hand_pose(image, hand, hand_points, hand_plane, camera_matrix, camera_distortion)
+                mp_drawing.draw_landmarks(
+                    canvas, hand, mp_hands.HAND_CONNECTIONS, 
+                    mp_drawing.DrawingSpec(color=(121, 22, 76), thickness=2, circle_radius=5),
+                    mp_drawing.DrawingSpec(color=(250, 44, 250), thickness=2, circle_radius=2))
+                mp_drawing.draw_landmarks(
+                    mask, hand, mp_hands.HAND_CONNECTIONS, 
+                    mp_drawing.DrawingSpec(color=(255, 255, 255), thickness=10, circle_radius=5),
+                    mp_drawing.DrawingSpec(color=(255, 255, 255), thickness=10, circle_radius=5))
+                
+                mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
+                contours,_ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+                # cv2.drawContours(canvas, contours, -1,(0, 255, 255) , 3)
+                x,y,w,h = cv2.boundingRect(mask)
+                cv2.rectangle(canvas,(x,y),(x+w,y+h),(255,255,0),2)
+
+                draw_finger_angles(canvas, hand, joint_list)
+                compute_hand_pose(canvas, hand, hand_points, hand_plane, 
+                                camera_matrix, camera_distortion, coord_pos=(x+w,y) )
                 # left or right hand
                 if get_label(num, hand, results):
                     text, coord = get_label(num, hand, results)
                     cv2.putText(image, text, coord, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 
                                 (255, 255, 255), 2, cv2.LINE_AA)
+        
         cv2.imshow('Hand Tracking', image)
+        cv2.imshow('canvas', canvas)
 
         if cv2.waitKey(10) == 27:
             break
