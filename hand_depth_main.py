@@ -36,7 +36,7 @@ def rotationMatrixToEulerAngles(R):
     return np.array([x, y, z])
 
 def draw_hand_pose(image, coord_pos, camera_matrix,camera_distortion, marker_size, rvec,tvec, 
-                    z_rot=-1, cam_pose = False):
+                    z_rot=-1, cam_pose = True):
         world_points = np.array([
             3.0, 0.0, 0.0,
             0.0, 0.0, 0.0,
@@ -152,15 +152,33 @@ hand_plane = {'0':[0.0, 0.0, 0.0], #wrist
             '5':[6.0, 5.5, 0.0], #index_base
             '2':[2.0, 6.5, 0.0], #thumb_base
             '9':[7.5, 3.7, 0.0], #middle_base
-            '13':[7.7, 2.0, 0.0] #ring_base
+            '13':[7.7, 2.0, 0.0], #ring_base
+            '1':[1.0, 4.0, 0.0] # thumb bottom
 }
-joint_list = [[8,7,6], [12,11,10], [16,15,14], [20,19,18]]
-hand_points = [0, 17, 5, 2, 9, 13]
 # 180 deg rotation matrix around the x axis    
-R_flip = np.zeros((3,3), dtype=np.float32)
-R_flip[0,0] = 1.0
-R_flip[1,1] =-1.0
-R_flip[2,2] =-1.0
+R_flip = np.array([
+            [1.0, 0.0, 0.0],
+            [0.0, math.cos(math.radians(180)),-math.sin(math.radians(180))],
+            [0.0, math.sin(math.radians(180)), math.cos(math.radians(180))]])
+Rot_z = np.array([
+            [math.cos(math.radians(-20)),-math.sin(math.radians(-20)), 0.0],
+            [math.sin(math.radians(-20)), math.cos(math.radians(-20)), 0.0],
+            [0.0, 0.0, 1.0]])
+Tran_xy = np.array([
+            [1.0, 0.0, 0.0, -5.0],
+            [0.0, 1.0, 0.0, -3.0],
+            [0.0, 0.0, 1.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0]])
+
+for key,vector in hand_plane.items():
+    row_mod = np.append(np.array(vector), [1.0])
+    trans = Tran_xy @ row_mod
+    hand_plane[key] = list(Rot_z @ trans[:3])
+    
+print(hand_plane)
+
+joint_list = [[8,7,6], [12,11,10], [16,15,14], [20,19,18]]
+hand_points = [0, 17, 5, 2, 9, 13, 1]
 
 calib_path = ""
 camera_matrix = np.loadtxt(calib_path+'camera_matrix.txt', delimiter=',')
@@ -191,7 +209,6 @@ with mp_hands.Hands(min_detection_confidence = 0.85, min_tracking_confidence = 0
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         if results.multi_hand_landmarks:
             for num, hand in enumerate(results.multi_hand_landmarks):
-                # Use only first detected hand
                 if num == 0:
                     mask = np.zeros_like(image)
                     mp_drawing.draw_landmarks(
@@ -200,8 +217,8 @@ with mp_hands.Hands(min_detection_confidence = 0.85, min_tracking_confidence = 0
                         mp_drawing.DrawingSpec(color=(250, 44, 250), thickness=2, circle_radius=2))
                     mp_drawing.draw_landmarks(
                         canvas, hand, mp_hands.HAND_CONNECTIONS, 
-                        mp_drawing.DrawingSpec(color=(121, 22, 76), thickness=2, circle_radius=5),
-                        mp_drawing.DrawingSpec(color=(250, 44, 250), thickness=2, circle_radius=2))
+                        mp_drawing.DrawingSpec(color=(121, 22, 76), thickness=10, circle_radius=10),
+                        mp_drawing.DrawingSpec(color=(250, 44, 250), thickness=10, circle_radius=10))
                     mp_drawing.draw_landmarks(
                         mask, hand, mp_hands.HAND_CONNECTIONS, 
                         mp_drawing.DrawingSpec(color=(255, 255, 255), thickness=10, circle_radius=5),
