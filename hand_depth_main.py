@@ -93,21 +93,24 @@ def draw_hand_pose(image, coord_pos, camera_matrix,camera_distortion, marker_siz
                         font, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
         
 def compute_hand_pose(image, hand, hand_points, hand_plane,camera_matrix,camera_distortion,
-                        draw_points=False, coord_pos = (0,100)):
+                        draw_points = False, coord_pos = (0,100)):
     joint_img_pts = np.zeros((len(hand_points),2))
     joint_world_pts = np.zeros((len(hand_points),3))
     #Loop through joint sets
-    for i, joint in enumerate(hand_points):
-        joint_img_pt = np.array([hand.landmark[joint].x, hand.landmark[joint].y])
-        joint_img_pt = np.multiply(joint_img_pt, [width, height]).astype(int)
-        joint_world_pt = np.array(hand_plane[str(joint)])
-        joint_img_pts[i] = joint_img_pt
-        joint_world_pts[i] = joint_world_pt
-        if draw_points:
-            cv2.putText(image, str(tuple(joint_img_pt)), tuple(joint_img_pt),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
-    _,rvec, tvec = cv2.solvePnP(joint_world_pts, joint_img_pts, camera_matrix, camera_distortion)
-    draw_hand_pose(image, coord_pos, camera_matrix, camera_distortion, 8, rvec, tvec)
+    try:
+        for i, joint in enumerate(hand_points):
+            joint_img_pt = np.array([hand.landmark[joint].x, hand.landmark[joint].y])
+            joint_img_pt = np.multiply(joint_img_pt, [width, height]).astype(int)
+            joint_world_pt = np.array(hand_plane[str(joint)])
+            joint_img_pts[i] = joint_img_pt
+            joint_world_pts[i] = joint_world_pt
+            if draw_points:
+                cv2.putText(image, str(tuple(joint_img_pt)), tuple(joint_img_pt),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
+        _,rvec, tvec = cv2.solvePnP(joint_world_pts, joint_img_pts, camera_matrix, camera_distortion)
+        draw_hand_pose(image, coord_pos, camera_matrix, camera_distortion, 8, rvec, tvec)
+    except:
+        print('[Warning]: Not enough landmarks detected for cv2.solvePnP.')
 
 def draw_finger_angles(image, hand, joint_list):
     for joint in joint_list:
@@ -159,7 +162,7 @@ R_flip[0,0] = 1.0
 R_flip[1,1] =-1.0
 R_flip[2,2] =-1.0
 
-calib_path = "hand_gesture_depth/"
+calib_path = ""
 camera_matrix = np.loadtxt(calib_path+'camera_matrix.txt', delimiter=',')
 camera_distortion = np.loadtxt(calib_path+'distortion.txt', delimiter=',')    
 
@@ -188,34 +191,36 @@ with mp_hands.Hands(min_detection_confidence = 0.85, min_tracking_confidence = 0
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         if results.multi_hand_landmarks:
             for num, hand in enumerate(results.multi_hand_landmarks):
-                mask = np.zeros_like(image)
-                mp_drawing.draw_landmarks(
-                    image, hand, mp_hands.HAND_CONNECTIONS, 
-                    mp_drawing.DrawingSpec(color=(121, 22, 76), thickness=2, circle_radius=4),
-                    mp_drawing.DrawingSpec(color=(250, 44, 250), thickness=2, circle_radius=2))
-                mp_drawing.draw_landmarks(
-                    canvas, hand, mp_hands.HAND_CONNECTIONS, 
-                    mp_drawing.DrawingSpec(color=(121, 22, 76), thickness=2, circle_radius=5),
-                    mp_drawing.DrawingSpec(color=(250, 44, 250), thickness=2, circle_radius=2))
-                mp_drawing.draw_landmarks(
-                    mask, hand, mp_hands.HAND_CONNECTIONS, 
-                    mp_drawing.DrawingSpec(color=(255, 255, 255), thickness=10, circle_radius=5),
-                    mp_drawing.DrawingSpec(color=(255, 255, 255), thickness=10, circle_radius=5))
-                
-                mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
-                contours,_ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-                # cv2.drawContours(canvas, contours, -1,(0, 255, 255) , 3)
-                x,y,w,h = cv2.boundingRect(mask)
-                cv2.rectangle(canvas,(x,y),(x+w,y+h),(255,255,0),2)
+                # Use only first detected hand
+                if num == 0:
+                    mask = np.zeros_like(image)
+                    mp_drawing.draw_landmarks(
+                        image, hand, mp_hands.HAND_CONNECTIONS, 
+                        mp_drawing.DrawingSpec(color=(121, 22, 76), thickness=2, circle_radius=4),
+                        mp_drawing.DrawingSpec(color=(250, 44, 250), thickness=2, circle_radius=2))
+                    mp_drawing.draw_landmarks(
+                        canvas, hand, mp_hands.HAND_CONNECTIONS, 
+                        mp_drawing.DrawingSpec(color=(121, 22, 76), thickness=2, circle_radius=5),
+                        mp_drawing.DrawingSpec(color=(250, 44, 250), thickness=2, circle_radius=2))
+                    mp_drawing.draw_landmarks(
+                        mask, hand, mp_hands.HAND_CONNECTIONS, 
+                        mp_drawing.DrawingSpec(color=(255, 255, 255), thickness=10, circle_radius=5),
+                        mp_drawing.DrawingSpec(color=(255, 255, 255), thickness=10, circle_radius=5))
+                    
+                    mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
+                    contours,_ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+                    # cv2.drawContours(canvas, contours, -1,(0, 255, 255) , 3)
+                    x,y,w,h = cv2.boundingRect(mask)
+                    cv2.rectangle(canvas,(x,y),(x+w,y+h),(255,255,0),2)
 
-                draw_finger_angles(canvas, hand, joint_list)
-                compute_hand_pose(canvas, hand, hand_points, hand_plane, 
-                                camera_matrix, camera_distortion, coord_pos=(x+w,y) )
-                # left or right hand
-                if get_label(num, hand, results):
-                    text, coord = get_label(num, hand, results)
-                    cv2.putText(image, text, coord, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 
-                                (255, 255, 255), 2, cv2.LINE_AA)
+                    draw_finger_angles(canvas, hand, joint_list)
+                    compute_hand_pose(canvas, hand, hand_points, hand_plane, 
+                                    camera_matrix, camera_distortion, coord_pos=(x+w,y) )
+                    # left or right hand
+                    if get_label(num, hand, results):
+                        text, coord = get_label(num, hand, results)
+                        cv2.putText(image, text, coord, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 
+                                    (255, 255, 255), 2, cv2.LINE_AA)
         
         cv2.imshow('Hand Tracking', image)
         cv2.imshow('canvas', canvas)
