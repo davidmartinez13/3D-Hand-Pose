@@ -5,6 +5,20 @@ import numpy as np
 import time
 class OPCUA_Client:
     def __init__(self):
+        self.jog_dict = {
+        'jog_x_p' : False,
+        'jog_x_m' : False,
+        'jog_y_p' : False,
+        'jog_y_m' : False,
+        'jog_z_p' : False,
+        'jog_z_m' : False,
+        'jog_a_p' : False,
+        'jog_a_m' : False,
+        'jog_b_p' : False,
+        'jog_b_m' : False,
+        'jog_c_p' : False,
+        'jog_c_m' : False
+        }
         print('[INFO]:Client object started.')
 
     def connect_OPCUA_server(self):
@@ -13,7 +27,7 @@ class OPCUA_Client:
 
         """
         password = ""
-        self.client = Client("opc.tcp://user:"+str(password)+"@00.00.00.000:0000/")
+        self.client = Client("opc.tcp://user:"+str(password)+"@0.0.0.0:0000/")
         self.client.connect()
         print('[INFO]: Client connected.')
 
@@ -113,7 +127,7 @@ class OPCUA_Client:
         c_pos = round(c_pos,2)
         return x_pos, y_pos, z_pos, a_pos, b_pos, c_pos, status_pos, turn_pos
 
-    def update_jog(self, jog_dict):
+    def stop_jog(self):
         self.Jog_X_M.set_value(ua.DataValue(False))
         self.Jog_X_P.set_value(ua.DataValue(False))
         self.Jog_Y_M.set_value(ua.DataValue(False))
@@ -129,68 +143,35 @@ class OPCUA_Client:
         self.Jog_C_P.set_value(ua.DataValue(False))
         time.sleep(0.3)
 
-        self.Jog_X_M.set_value(ua.DataValue(jog_dict['jog_x_m']))
-        self.Jog_X_P.set_value(ua.DataValue(jog_dict['jog_x_p']))
-        self.Jog_Y_M.set_value(ua.DataValue(jog_dict['jog_y_m']))
-        self.Jog_Y_P.set_value(ua.DataValue(jog_dict['jog_y_p']))
-        self.Jog_Z_M.set_value(ua.DataValue(jog_dict['jog_z_m']))
-        self.Jog_Z_P.set_value(ua.DataValue(jog_dict['jog_z_p']))
+    def update_jog(self, jog_key):
+        self.jog_dict = {key: not self.jog_dict[key] if key is jog_key 
+                            else False for key in self.jog_dict}
+        self.stop_jog()
+        self.Jog_X_M.set_value(ua.DataValue(self.jog_dict['jog_x_m']))
+        self.Jog_X_P.set_value(ua.DataValue(self.jog_dict['jog_x_p']))
+        self.Jog_Y_M.set_value(ua.DataValue(self.jog_dict['jog_y_m']))
+        self.Jog_Y_P.set_value(ua.DataValue(self.jog_dict['jog_y_p']))
+        self.Jog_Z_M.set_value(ua.DataValue(self.jog_dict['jog_z_m']))
+        self.Jog_Z_P.set_value(ua.DataValue(self.jog_dict['jog_z_p']))
 
-        self.Jog_A_M.set_value(ua.DataValue(jog_dict['jog_a_m']))
-        self.Jog_A_P.set_value(ua.DataValue(jog_dict['jog_a_p']))
-        self.Jog_B_M.set_value(ua.DataValue(jog_dict['jog_b_m']))
-        self.Jog_B_P.set_value(ua.DataValue(jog_dict['jog_b_p']))
-        self.Jog_C_M.set_value(ua.DataValue(jog_dict['jog_c_m']))
-        self.Jog_C_P.set_value(ua.DataValue(jog_dict['jog_c_p']))
-        print(jog_dict)
+        self.Jog_A_M.set_value(ua.DataValue(self.jog_dict['jog_a_m']))
+        self.Jog_A_P.set_value(ua.DataValue(self.jog_dict['jog_a_p']))
+        self.Jog_B_M.set_value(ua.DataValue(self.jog_dict['jog_b_m']))
+        self.Jog_B_P.set_value(ua.DataValue(self.jog_dict['jog_b_p']))
+        self.Jog_C_M.set_value(ua.DataValue(self.jog_dict['jog_c_m']))
+        self.Jog_C_P.set_value(ua.DataValue(self.jog_dict['jog_c_p']))
+        print(self.jog_dict)
         time.sleep(0.3)
-def set_jog_keys(jog_dict,jog_key):
-    for key in jog_dict:
-        if key is jog_key:
-            jog_dict[key]= not jog_dict[key]
-        else:
-            jog_dict[key] = False
-
-cl = OPCUA_Client()
-
-cl.connect_OPCUA_server()
+        
+rc = OPCUA_Client()
+rc.connect_OPCUA_server()
 gripper = False
-jog_x_p = False
-jog_x_m = False
-jog_y_p = False
-jog_y_m = False
-jog_z_p = False
-jog_z_m = False
 
-jog_a_p = False
-jog_a_m = False
-jog_b_p = False
-jog_b_m = False
-jog_c_p = False
-jog_c_m = False
-
-jog_dict = {
-'jog_x_p' : False,
-'jog_x_m' : False,
-'jog_y_p' : False,
-'jog_y_m' : False,
-'jog_z_p' : False,
-'jog_z_m' : False,
-'jog_a_p' : False,
-'jog_a_m' : False,
-'jog_b_p' : False,
-'jog_b_m' : False,
-'jog_c_p' : False,
-'jog_c_m' : False
-
-}
 while True:
-    # jog_x_p = False
-    cl.get_nodes()
-    x_pos, y_pos, z_pos, a_pos, b_pos, c_pos, status_pos, turn_pos = cl.get_actual_pos()
+    rc.get_nodes()
+    x_pos, y_pos, z_pos, a_pos, b_pos, c_pos, status_pos, turn_pos = rc.get_actual_pos()
 
     screen = np.zeros((960,1280))
-    
 
     cv2.putText(screen,'x:'+ str(x_pos),(60,30),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
@@ -208,61 +189,50 @@ while True:
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
     cv2.putText(screen,'Turn:'+ str(turn_pos),(60,170),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
-    # print(jog_a_p, jog_a_m, jog_b_p, jog_b_m, jog_c_p, jog_c_m)    
+                
     cv2.imshow("Frame", screen)
     key = cv2.waitKey(1)
     if key == 27:
-        cl.client.disconnect()
+        rc.stop_jog()
+        rc.client.disconnect()
         break
     if key == ord('g'):
         gripper = not gripper
-        cl.Gripper_State.set_value(ua.DataValue(gripper))
+        rc.Gripper_State.set_value(ua.DataValue(gripper))
         time.sleep(0.4)
 
     if key == ord('e') :
-        set_jog_keys(jog_dict, 'jog_x_p')
-        cl.update_jog(jog_dict)
+        rc.update_jog('jog_x_p')
         
     if key == ord('q') :
-        set_jog_keys(jog_dict, 'jog_x_m')
-        cl.update_jog(jog_dict)
+        rc.update_jog('jog_x_m')
         
     if key == ord('d') :
-        set_jog_keys(jog_dict, 'jog_y_p')
-        cl.update_jog(jog_dict)
+        rc.update_jog('jog_y_p')
 
     if key == ord('a') :
-        set_jog_keys(jog_dict, 'jog_y_m')
-        cl.update_jog(jog_dict)
+        rc.update_jog('jog_y_m')
 
     if key == ord('w') :
-        set_jog_keys(jog_dict, 'jog_z_p')
-        cl.update_jog(jog_dict)
+        rc.update_jog('jog_z_p')
         
     if key == ord('s') :
-        set_jog_keys(jog_dict, 'jog_z_m')
-        cl.update_jog(jog_dict)
+        rc.update_jog('jog_z_m')
 
     if key == ord('j') :
-        set_jog_keys(jog_dict, 'jog_a_p')
-        cl.update_jog(jog_dict)
+        rc.update_jog('jog_a_p')
     
     if key == ord('l') :
-        set_jog_keys(jog_dict, 'jog_a_m')
-        cl.update_jog(jog_dict)
+        rc.update_jog('jog_a_m')
     
     if key == ord('u') :
-        set_jog_keys(jog_dict, 'jog_b_p')
-        cl.update_jog(jog_dict)
+        rc.update_jog('jog_b_p')
     
     if key == ord('o') :
-        set_jog_keys(jog_dict, 'jog_b_m')
-        cl.update_jog(jog_dict)
+        rc.update_jog('jog_b_m')
     
     if key == ord('i') :
-        set_jog_keys(jog_dict, 'jog_c_p')
-        cl.update_jog(jog_dict)
+        rc.update_jog('jog_c_p')
     
     if key == ord('k') :
-        set_jog_keys(jog_dict, 'jog_c_m')
-        cl.update_jog(jog_dict)
+        rc.update_jog('jog_c_m')
