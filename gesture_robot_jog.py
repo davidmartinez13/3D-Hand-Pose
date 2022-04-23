@@ -3,6 +3,7 @@ from opcua import Client
 import cv2
 import numpy as np
 import time
+from HandDetection import HandDetection
 class OPCUA_Client:
     def __init__(self):
         self.jog_dict = {
@@ -26,7 +27,7 @@ class OPCUA_Client:
         Connects OPC UA Client to Server on PLC.
 
         """
-        password = ""
+        password = "CIIRC"
         self.client = Client("opc.tcp://user:"+str(password)+"@0.0.0.0:0000/")
         self.client.connect()
         print('[INFO]: Client connected.')
@@ -126,7 +127,6 @@ class OPCUA_Client:
         b_pos = round(b_pos,2)
         c_pos = round(c_pos,2)
         return x_pos, y_pos, z_pos, a_pos, b_pos, c_pos, status_pos, turn_pos
-
     def stop_jog(self):
         self.Jog_X_M.set_value(ua.DataValue(False))
         self.Jog_X_P.set_value(ua.DataValue(False))
@@ -163,34 +163,48 @@ class OPCUA_Client:
         print(self.jog_dict)
         time.sleep(0.3)
         
+
 rc = OPCUA_Client()
+hd = HandDetection()
 rc.connect_OPCUA_server()
 gripper = False
-
+width = 1280
+height = 720
+# cap = cv2.VideoCapture(1)
+cap = cv2.VideoCapture(0)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+x_hand = 0.0 
 while True:
     rc.get_nodes()
-    x_pos, y_pos, z_pos, a_pos, b_pos, c_pos, status_pos, turn_pos = rc.get_actual_pos()
+    ret, frame = cap.read()
+    image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    image = cv2.flip(image, 1)
+    # Set flag
+    image.flags.writeable = False
+    image_, canvas = hd.hand_detector(image.copy())
+    print(hd.hand_pose_dict)
+    if hd.hand_pose_dict:
+        x_hand = hd.hand_pose_dict['x_hand']
+        z_hand = hd.hand_pose_dict['z_hand']
+        print(x_hand)
+        if x_hand > 15.0 and x_hand < 16.0 :
+            rc.update_jog('jog_y_p')
+            print('x_increment')
 
-    screen = np.zeros((960,1280))
+        if x_hand < -15.0 and x_hand > -16.0:
+            rc.update_jog('jog_y_m')
+            print('x_decrement')
 
-    cv2.putText(screen,'x:'+ str(x_pos),(60,30),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
-    cv2.putText(screen,'y:'+ str(y_pos),(60,50),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
-    cv2.putText(screen,'z:'+ str(z_pos),(60,70),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
-    cv2.putText(screen,'a:'+ str(a_pos),(60,90),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
-    cv2.putText(screen,'b:'+ str(b_pos),(60,110),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
-    cv2.putText(screen,'c:'+ str(c_pos),(60,130),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
-    cv2.putText(screen,'Status:'+ str(status_pos),(60,150),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
-    cv2.putText(screen,'Turn:'+ str(turn_pos),(60,170),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
-                
-    cv2.imshow("Frame", screen)
+        # if z_hand > 50.0 and z_hand < 59.0 :
+        #     rc.update_jog('jog_x_p')
+        #     print('z_increment')
+
+        # if z_hand < 30.0 and z_hand > 29.0:
+        #     rc.update_jog('jog_x_m')
+        #     print('z_decrement')
+    cv2.imshow('Hand Tracking', image_)
+    cv2.imshow('canvas', canvas)
     key = cv2.waitKey(1)
     if key == 27:
         rc.stop_jog()
