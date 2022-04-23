@@ -152,7 +152,7 @@ class HandDetection:
         try:
             for i, joint in enumerate(self.hand_points):
                 joint_img_pt = np.array([hand.landmark[joint].x, hand.landmark[joint].y])
-                joint_img_pt = np.multiply(joint_img_pt, [width, height]).astype(int)
+                joint_img_pt = np.multiply(joint_img_pt, [self.width, self.height]).astype(int)
                 joint_world_pt = np.array(self.hand_plane[str(joint)])
                 joint_img_pts[i] = joint_img_pt
                 joint_world_pts[i] = joint_world_pt
@@ -178,7 +178,7 @@ class HandDetection:
             if angle > 180.0:
                 angle = 360-angle
                 
-            cv2.putText(image, str(round(angle, 2)), tuple(np.multiply(b, [width, height]).astype(int)),
+            cv2.putText(image, str(round(angle, 2)), tuple(np.multiply(b, [self.width, self.height]).astype(int)),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
 
     def get_label(self, index, hand, results):
@@ -195,12 +195,13 @@ class HandDetection:
                 coords = tuple(np.multiply(
                     np.array((hand.landmark[self.mp_hands.HandLandmark.WRIST].x, 
                                 hand.landmark[self.mp_hands.HandLandmark.WRIST].y)),
-                [width,height]).astype(int))
+                [self.width,self.height]).astype(int))
                 
                 output = text, coords
         return output
 
     def hand_detector(self, image):
+        self.height, self.width, self.channels = image.shape
         canvas = np.zeros_like(image)
         
         results = self.hands.process(image)
@@ -238,27 +239,30 @@ class HandDetection:
                     self.draw_finger_angles(canvas, hand)
                     self.compute_hand_pose(canvas, hand, coord_pos=(x+w,y))
         return image, canvas
+    def demo(self):
+        width = 1280
+        height = 720
+        # cap = cv2.VideoCapture(1)
+        cap = cv2.VideoCapture(0)
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+        
+        while cap.isOpened():
+            ret, frame = cap.read()
+            image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            image = cv2.flip(image, 1)
+            # Set flag
+            image.flags.writeable = False
+            image_, canvas = self.hand_detector(image.copy())
+            print(self.hand_pose_dict)
+            cv2.imshow('Hand Tracking', image_)
+            cv2.imshow('canvas', canvas)
 
-width = 1280
-height = 720
-# cap = cv2.VideoCapture(1)
-cap = cv2.VideoCapture(0)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-hd = HandDetection()
-while cap.isOpened():
-    ret, frame = cap.read()
-    image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    image = cv2.flip(image, 1)
-    # Set flag
-    image.flags.writeable = False
-    image_, canvas = hd.hand_detector(image.copy())
-    print(hd.hand_pose_dict)
-    cv2.imshow('Hand Tracking', image_)
-    cv2.imshow('canvas', canvas)
-
-    if cv2.waitKey(10) == 27:
-        break
-
-cap.release()
-cv2.destroyAllWindows()
+            if cv2.waitKey(10) == 27:
+                break
+        cap.release()
+        cv2.destroyAllWindows()
+    
+if __name__ == '__main__':
+    hd = HandDetection()
+    hd.demo()
