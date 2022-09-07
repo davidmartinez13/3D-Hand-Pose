@@ -6,7 +6,8 @@ import os
 from matplotlib import pyplot as plt
 import sys, time, math
 class HandDetection:
-    def __init__(self):
+    def __init__(self,calib_path=''):
+        self.calib_path = calib_path
         self.hand_pose_dict = {}
         self.hand_plane = {'0':[0.0, 0.0, 0.0], #wrist
             '17':[7.0, 0.0, 0.0], #pinky_base
@@ -43,9 +44,9 @@ class HandDetection:
         self.joint_list = [[8,7,6], [12,11,10], [16,15,14], [20,19,18]]
         self.hand_points = [0, 17, 5, 2, 9, 13, 1]
 
-        calib_path = "gesture_robot_jog/"
-        self.camera_matrix = np.loadtxt(calib_path+'camera_matrix.txt', delimiter=',')
-        self.camera_distortion = np.loadtxt(calib_path+'distortion.txt', delimiter=',')
+        
+        self.camera_matrix = np.loadtxt(self.calib_path+'camera_matrix.txt', delimiter=',')
+        self.camera_distortion = np.loadtxt(self.calib_path+'distortion.txt', delimiter=',')
         self.mp_drawing = mp.solutions.drawing_utils
         self.mp_hands = mp.solutions.hands
         self.mp_hands.HandLandmark.WRIST
@@ -262,3 +263,6 @@ class HandDetection:
                 break
         cap.release()
         cv2.destroyAllWindows()
+if __name__ == '__main__':
+    detector = HandDetection()
+    detector.demo()
